@@ -3,7 +3,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Miran Paper – Debug Assistant</title>
+  <title>Miran Paper – Assistant</title>
   <style>
     body {
       font-family: monospace;
@@ -13,6 +13,7 @@
       max-width: 800px;
       margin: auto;
     }
+    h1 { font-size: 1.6rem; }
     textarea, input {
       width: 100%;
       padding: 10px;
@@ -34,7 +35,9 @@
   </style>
 </head>
 <body>
-  <h1>🐛 Miran Paper – Assistant API Debug</h1>
+  <h1>🌀 Miran Paper – Assistant API</h1>
+  <p>Conversazione pubblica con il tuo Assistant GPT-4o</p>
+
   <label>API Key</label>
   <input id="apiKey" type="text" placeholder="sk-...">
 
@@ -45,6 +48,7 @@
   <textarea id="message" rows="4">Ciao Miran</textarea>
 
   <button onclick="send()">Invia</button>
+
   <pre id="output">📥 In attesa...</pre>
 
   <script>
@@ -53,29 +57,28 @@
       const assistant = document.getElementById("assistantId").value.trim();
       const msg = document.getElementById("message").value.trim();
       const out = document.getElementById("output");
-      out.textContent = "⏳ Creo thread...\n";
 
+      out.textContent = "⏳ Creo thread...";
       try {
         const t = await fetch("https://api.openai.com/v1/threads", {
           method: "POST",
           headers: {
             "Authorization": "Bearer " + key,
             "Content-Type": "application/json",
-            "OpenAI-Beta": "assistants=v1"
+            "OpenAI-Beta": "assistants=v2"
           },
           body: "{}"
         });
         const tData = await t.json();
-        out.textContent += "THREAD RESPONSE:\n" + JSON.stringify(tData, null, 2) + "\n";
         const threadId = tData.id;
-        if (!threadId) return;
+        out.textContent += "\nTHREAD: " + threadId;
 
         await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
           method: "POST",
           headers: {
             "Authorization": "Bearer " + key,
             "Content-Type": "application/json",
-            "OpenAI-Beta": "assistants=v1"
+            "OpenAI-Beta": "assistants=v2"
           },
           body: JSON.stringify({ role: "user", content: msg })
         });
@@ -85,21 +88,21 @@
           headers: {
             "Authorization": "Bearer " + key,
             "Content-Type": "application/json",
-            "OpenAI-Beta": "assistants=v1"
+            "OpenAI-Beta": "assistants=v2"
           },
           body: JSON.stringify({ assistant_id: assistant })
         });
+
         const runData = await run.json();
-        out.textContent += "\nRUN RESPONSE:\n" + JSON.stringify(runData, null, 2) + "\n";
         const runId = runData.id;
-        if (!runId) return;
+        out.textContent += "\nRUN: " + runId;
 
         let completed = false;
         while (!completed) {
           const status = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
             headers: {
               "Authorization": "Bearer " + key,
-              "OpenAI-Beta": "assistants=v1"
+              "OpenAI-Beta": "assistants=v2"
             }
           });
           const sData = await status.json();
@@ -113,15 +116,15 @@
         const messages = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
           headers: {
             "Authorization": "Bearer " + key,
-            "OpenAI-Beta": "assistants=v1"
+            "OpenAI-Beta": "assistants=v2"
           }
         });
         const mData = await messages.json();
         const aMsg = mData.data.find(m => m.role === "assistant");
-        out.textContent += "\n🤖 RISPOSTA:\n" + aMsg.content[0].text.value;
+        out.textContent += "\n\n🤖 RISPOSTA:\n" + aMsg.content[0].text.value;
 
       } catch (e) {
-        out.textContent += "\n\n❌ ERRORE: " + e.message;
+        out.textContent += "\n\n❌ Errore: " + e.message;
       }
     }
   </script>
