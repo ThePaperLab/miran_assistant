@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Miran Paper – Assistant</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #fcfcfc;
+      color: #111;
+      padding: 40px;
+      max-width: 800px;
+      margin: auto;
+    }
+    h1 { font-size: 1.6rem; }
+    textarea, input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #ddd;
+    }
+    button {
+      padding: 10px;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    pre {
+      background: #111;
+      color: #0f0;
+      padding: 20px;
+      white-space: pre-wrap;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌀 Miran Paper – Assistant API</h1>
+  <p>Conversazione pubblica con il tuo Assistant GPT-4o</p>
+
+  <label>API Key</label>
+  <input id="apiKey" type="text" placeholder="sk-...">
+
+  <label>Assistant ID</label>
+  <input id="assistantId" type="text" placeholder="asst_...">
+
+  <label>Messaggio</label>
+  <textarea id="message" rows="4">Ciao Miran</textarea>
+
+  <button onclick="send()">Invia</button>
+
+  <pre id="output">📥 In attesa...</pre>
+
+  <script>
+    async function send() {
+      const key = document.getElementById("apiKey").value.trim();
+      const assistant = document.getElementById("assistantId").value.trim();
+      const msg = document.getElementById("message").value.trim();
+      const out = document.getElementById("output");
+
+      out.textContent = "⏳ Creo thread...";
+      try {
+        const t = await fetch("https://api.openai.com/v1/threads", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + key,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "assistants=v1"
+          },
+          body: "{}"
+        });
+        const tData = await t.json();
+        const threadId = tData.id;
+        out.textContent += "\nTHREAD: " + threadId;
+
+        await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + key,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "assistants=v1"
+          },
+          body: JSON.stringify({ role: "user", content: msg })
+        });
+
+        const run = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + key,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "assistants=v1"
+          },
+          body: JSON.stringify({ assistant_id: assistant })
+        });
+
+        const runData = await run.json();
+        const runId = runData.id;
+        out.textContent += "\nRUN: " + runId;
+
+        let completed = false;
+        while (!completed) {
+          const status = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
+            headers: {
+              "Authorization": "Bearer " + key,
+              "OpenAI-Beta": "assistants=v1"
+            }
+          });
+          const sData = await status.json();
+          if (sData.status === "completed") {
+            completed = true;
+            break;
+          }
+          await new Promise(r => setTimeout(r, 1500));
+        }
+
+        const messages = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+          headers: {
+            "Authorization": "Bearer " + key,
+            "OpenAI-Beta": "assistants=v1"
+          }
+        });
+        const mData = await messages.json();
+        const aMsg = mData.data.find(m => m.role === "assistant");
+        out.textContent += "\n\n🤖 RISPOSTA:\n" + aMsg.content[0].text.value;
+
+      } catch (e) {
+        out.textContent += "\n\n❌ Errore: " + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
