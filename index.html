@@ -3,7 +3,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>Miran Paper – Assistant</title>
+  <title>Miran Paper – Debug Assistant</title>
   <style>
     body {
       font-family: monospace;
@@ -13,7 +13,6 @@
       max-width: 800px;
       margin: auto;
     }
-    h1 { font-size: 1.6rem; }
     textarea, input {
       width: 100%;
       padding: 10px;
@@ -35,9 +34,7 @@
   </style>
 </head>
 <body>
-  <h1>🌀 Miran Paper – Assistant API</h1>
-  <p>Conversazione pubblica con il tuo Assistant GPT-4o</p>
-
+  <h1>🐛 Miran Paper – Assistant API Debug</h1>
   <label>API Key</label>
   <input id="apiKey" type="text" placeholder="sk-...">
 
@@ -48,7 +45,6 @@
   <textarea id="message" rows="4">Ciao Miran</textarea>
 
   <button onclick="send()">Invia</button>
-
   <pre id="output">📥 In attesa...</pre>
 
   <script>
@@ -57,8 +53,8 @@
       const assistant = document.getElementById("assistantId").value.trim();
       const msg = document.getElementById("message").value.trim();
       const out = document.getElementById("output");
+      out.textContent = "⏳ Creo thread...\n";
 
-      out.textContent = "⏳ Creo thread...";
       try {
         const t = await fetch("https://api.openai.com/v1/threads", {
           method: "POST",
@@ -70,8 +66,9 @@
           body: "{}"
         });
         const tData = await t.json();
+        out.textContent += "THREAD RESPONSE:\n" + JSON.stringify(tData, null, 2) + "\n";
         const threadId = tData.id;
-        out.textContent += "\nTHREAD: " + threadId;
+        if (!threadId) return;
 
         await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
           method: "POST",
@@ -92,10 +89,10 @@
           },
           body: JSON.stringify({ assistant_id: assistant })
         });
-
         const runData = await run.json();
+        out.textContent += "\nRUN RESPONSE:\n" + JSON.stringify(runData, null, 2) + "\n";
         const runId = runData.id;
-        out.textContent += "\nRUN: " + runId;
+        if (!runId) return;
 
         let completed = false;
         while (!completed) {
@@ -121,10 +118,10 @@
         });
         const mData = await messages.json();
         const aMsg = mData.data.find(m => m.role === "assistant");
-        out.textContent += "\n\n🤖 RISPOSTA:\n" + aMsg.content[0].text.value;
+        out.textContent += "\n🤖 RISPOSTA:\n" + aMsg.content[0].text.value;
 
       } catch (e) {
-        out.textContent += "\n\n❌ Errore: " + e.message;
+        out.textContent += "\n\n❌ ERRORE: " + e.message;
       }
     }
   </script>
